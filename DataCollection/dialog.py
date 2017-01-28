@@ -1,0 +1,1 @@
+welcome = ["Hello I am Now Robot, I need your help to collect some posture data", "welcome"]
