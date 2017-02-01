@@ -1,4 +1,6 @@
 from threading import Thread
+
+import time
 from sklearn import datasets
 import kinect_interface as kinect
 import fuzzy_logic
@@ -7,11 +9,12 @@ import numpy as np
 import mountain_clustering as mount_cluster
 import subtractive_clustering as subtractive_cluster
 import DataCollection.data_collection as data_collection
+import DataTraining.data_training as data_training
 
-data_collection_process = False
-mountain_testing = False
-subtractive_clustering = True
-training = False
+data_collection_process = 0
+mountain_testing = 0
+subtractive_clustering = 0
+training = 1
 
 
 def start_kinect():
@@ -65,7 +68,7 @@ def subtractive_clustering_test():
     centers = [[4, 2], [1, 7], [5, 16], [3, 16], [10, 1]]
     grid_size = 30
     pts_per_cluster = 200
-    radius = 0.5
+    radius = 0.45
 
     # generation of rand clusters....
     x_pts = np.zeros(1)
@@ -93,13 +96,17 @@ def main():
     if data_collection_process:
         thread_kinect = Thread(target=start_kinect)
         thread_kinect.start()
+        while kinect.skeleton is None:
+            pass
+        time.sleep(3)
         data_collection.start()
+
 
     if mountain_testing:
         mountain_clustering_test()
 
     if training:
-        pass
+        data_training.start()
 
     if subtractive_clustering:
         subtractive_clustering_test()

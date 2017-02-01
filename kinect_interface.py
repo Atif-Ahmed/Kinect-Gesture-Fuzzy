@@ -2,8 +2,7 @@ import pygame as window
 from pykinect import nui
 from pykinect.nui import JointId as Joint_Id
 from pykinect.nui.structs import TransformSmoothParameters
-import fuzzy_logic as fuzzy
-
+import DataCollection.data_collection as dataCollection
 
 WINDOW_SIZE = 640, 480
 red = window.color.THECOLORS['red']
@@ -14,7 +13,8 @@ device = None  # handle to Kinect device
 skeleton = None  # Tuple of skeleton data 3D
 arm_length = None  # data to store information of _right_arm
 
-enable_video = True  # enable disable video feed
+enable_video = True  # enable or disable video feed
+
 
 # Filtering parameters.... of skeletal data..
 SMOOTH_PARAMS_SMOOTHING = 0.5
@@ -27,7 +27,6 @@ SMOOTH_PARAMS = TransformSmoothParameters(SMOOTH_PARAMS_SMOOTHING,
                                           SMOOTH_PARAMS_PREDICTION,
                                           SMOOTH_PARAMS_JITTER_RADIUS,
                                           SMOOTH_PARAMS_MAX_DEVIATION_RADIUS)
-
 
 # initialize Kinect device
 # noinspection PyUnresolvedReferences,PyUnboundLocalVariable
@@ -44,7 +43,6 @@ def init():
     device.video_frame_ready += video_frame_ready
     device.video_stream.open(nui.ImageStreamType.Video, 2, nui.ImageResolution.Resolution640x480, nui.ImageType.Color)
 
-
 # noinspection PyProtectedMember
 def video_frame_ready(frame):
     skeleton_2_d = get_skeleton()
@@ -54,9 +52,9 @@ def video_frame_ready(frame):
         screen.fill((0, 0, 0))
     if skeleton_2_d is not None:
         draw_skeleton(skeleton_2_d)
-        fuzzy.apply_fuzzy(skeleton);
+        if dataCollection.is_capture:
+            dataCollection.get_arm_locations(skeleton)
     window.display.update()
-
 
 def get_skeleton():
     global skeleton
@@ -74,7 +72,6 @@ def get_skeleton():
                 skeleton_2_d.append(
                     nui.SkeletonEngine.skeleton_to_depth_image(joints, screen.get_width(), screen.get_height()))
             return skeleton_2_d
-
 
 def draw_skeleton(_skeleton):
     # draw Circles for joints
@@ -107,11 +104,9 @@ def draw_skeleton(_skeleton):
     # Shoulder to Shoulder
     window.draw.line(screen, red, map(int, _skeleton[Joint_Id.shoulder_right]), map(int, _skeleton[Joint_Id.shoulder_left]), 2)
 
-
 def device_angle_up():
     device.camera.elevation_angle += 2
     print "Device Camera Angle = ", device.camera.elevation_angle
-
 
 def device_angle_down():
     device.camera.elevation_angle -= 2

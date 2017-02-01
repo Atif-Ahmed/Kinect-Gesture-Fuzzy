@@ -1,29 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from pykinect.nui import JointId as Joint_Id
 
-arm_joint_index = {'left_shoulder': 0,
-                   'right_shoulder': 1,
-                   'left_elbow': 2,
-                   'right_elbow': 3,
-                   'left_wrist': 4,
-                   'right_wrist': 5}
 
 arm_spherical = []
 
 
 # fetch the arm position of the system.
-def get_arm_locations(_skeleton):
-    arm_pos_cartesian = []
 
-    arm_pos_cartesian.append((_skeleton[Joint_Id.shoulder_left].x, _skeleton[Joint_Id.shoulder_left].y, _skeleton[Joint_Id.shoulder_left].z))
-    arm_pos_cartesian.append((_skeleton[Joint_Id.shoulder_right].x, _skeleton[Joint_Id.shoulder_right].y, _skeleton[Joint_Id.shoulder_right].z))
-    arm_pos_cartesian.append((_skeleton[Joint_Id.elbow_left].x, _skeleton[Joint_Id.elbow_left].y, _skeleton[Joint_Id.elbow_left].z))
-    arm_pos_cartesian.append((_skeleton[Joint_Id.elbow_right].x, _skeleton[Joint_Id.elbow_right].y, _skeleton[Joint_Id.elbow_right].z))
-    arm_pos_cartesian.append((_skeleton[Joint_Id.wrist_left].x, _skeleton[Joint_Id.wrist_left].y, _skeleton[Joint_Id.wrist_left].z))
-    arm_pos_cartesian.append((_skeleton[Joint_Id.wrist_right].x, _skeleton[Joint_Id.wrist_right].y, _skeleton[Joint_Id.wrist_right].z))
 
-    return arm_pos_cartesian
 
 
 def cartesian2spherical(xyz):
