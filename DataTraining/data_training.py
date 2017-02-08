@@ -3,17 +3,26 @@ import subtractive_clustering
 import numpy as np
 import skfuzzy as fuzz
 import matplotlib.pyplot as plt
+from pybrain.tools.shortcuts import buildNetwork
+from pybrain import structure as structure
+from pybrain.datasets import SupervisedDataSet
+from pybrain.supervised.trainers import BackpropTrainer
 
 left_arm = []
 right_arm = []
+colors =['b','g','r','c']
 
-left_arm_fuzzy_set =[]
-right_arm_fuzzy_set =[]
+dimension = 4
+input_neurons = 0
+output_neurons = 0
+hidden_neurons = 1
 
-poses = 6
+show_plot = False
+
+epochs = 10
+sigma_increment_factor = 0.01
 
 def start():
-
     read_csv("DataCollection/Data/Side/data.csv")
     read_csv("DataCollection/Data/Up/data.csv")
     read_csv("DataCollection/Data/Front/data.csv")
@@ -25,54 +34,143 @@ def start():
     print "Starting subtractive Clustering Process"
     left_arm_array = np.array(left_arm)
     right_arm_array = np.array(right_arm)
-    radius = 0.5
+    radius = 0.45
 
-    ########################################################################################################
+    train_neuro_fuzzy(left_arm_array, radius,"DataTraining/Trained/Left_Arm_NN.pickle")
+    train_neuro_fuzzy(right_arm_array, radius,"DataTraining/Trained/Right_Arm_NN.pickle")
 
-    # Left Hand Clustering
-    cluster_left_1, sigma_left_1 = getCluster(np.ravel(left_arm_array[:, :, 0]), radius)
-    cluster_left_2, sigma_left_2 = getCluster(np.ravel(left_arm_array[:, :, 1]), radius)
-    cluster_left_3, sigma_left_3 = getCluster(np.ravel(left_arm_array[:, :, 2]), radius)
-    cluster_left_4, sigma_left_4 = getCluster(np.ravel(left_arm_array[:, :, 3]), radius)
+def train_neuro_fuzzy(arm_data, radius,NeuralNetworkName):
+    #  Fuzzy
+    clusters=[]
+    sigmas=[]
+    fuzzy_sets = []
+    fuzzy_set_range = []
+    for i in range(0,dimension,1):
+        cluster, sigma = get_cluster(np.ravel(arm_data[:, :, i]), radius)
+        sets, x = get_fuzzy_membership(cluster, sigma, np.ravel(arm_data[:, :, i]))
+        fuzzy_sets.append(sets)
+        fuzzy_set_range.append(x)
+        clusters.append(cluster)
+        sigmas.append(sigma)
 
-    # Right Hand Clustering
-    cluster_right_1, sigma_right_1 = getCluster(np.ravel(right_arm_array[:, :, 0]), radius)
-    cluster_right_2, sigma_right_2 = getCluster(np.ravel(right_arm_array[:, :, 1]), radius)
-    cluster_right_3, sigma_right_3 = getCluster(np.ravel(right_arm_array[:, :, 2]), radius)
-    cluster_right_4, sigma_right_4 = getCluster(np.ravel(right_arm_array[:, :, 3]), radius)
-
-    ########################################################################################################
-
-    # Left Hand membership
-    global left_arm_fuzzy_set
-    left_arm_fuzzy_set.append(getFuzzyMembership(cluster_left_1, sigma_left_1, left_arm_array[:, :, 0]))
-    left_arm_fuzzy_set.append(getFuzzyMembership(cluster_left_2, sigma_left_2, left_arm_array[:, :, 1]))
-    left_arm_fuzzy_set.append(getFuzzyMembership(cluster_left_3, sigma_left_3, left_arm_array[:, :, 2]))
-    left_arm_fuzzy_set.append(getFuzzyMembership(cluster_left_4, sigma_left_4, left_arm_array[:, :, 3]))
-
-    # Right Hand membership
-    global right_arm_fuzzy_set
-    right_arm_fuzzy_set.append(getFuzzyMembership(cluster_right_1, sigma_right_1, right_arm_array[:, :, 0]))
-    right_arm_fuzzy_set.append(getFuzzyMembership(cluster_right_2, sigma_right_2, right_arm_array[:, :, 1]))
-    right_arm_fuzzy_set.append(getFuzzyMembership(cluster_right_3, sigma_right_3, right_arm_array[:, :, 2]))
-    right_arm_fuzzy_set.append(getFuzzyMembership(cluster_right_4, sigma_right_4, right_arm_array[:, :, 3]))
+    #adjustment of sigma and cluster center.
+    adust_sigma(arm_data, clusters, fuzzy_set_range, fuzzy_sets, sigmas)
 
 
+    # Neural Network
+    global output_neurons, input_neurons,hidden_neurons
+    input_neurons = 0
+    output_neurons = 0
+    hidden_neurons = 1
+    output_neurons = len(arm_data)
+    for fuzzy_set in fuzzy_sets:
+        hidden =0
+        for membership in fuzzy_set:
+            input_neurons += 1
+            hidden += 1
+        hidden_neurons *= hidden
+    neural_net, data_set = build_neural_network()
+
+    # Generate Neural Network Training Data
+    input_data, output_data = generate_data(arm_data, fuzzy_set_range, fuzzy_sets)
+    for i in np.arange(len(output_data)):
+        data_set.addSample(input_data[i], output_data[i])
+    # Training the neural network
+    trainer = BackpropTrainer(neural_net, data_set)
+    for i in range(epochs):
+        error = trainer.train()
+        print "epoch ", i, " error : " , error
+
+    import pickle
+    fileObject = open(NeuralNetworkName, 'w')
+    pickle.dump(neural_net, fileObject)
+    fileObject.close()
 
 
+def adust_sigma(arm_data, clusters, fuzzy_set_range, fuzzy_sets, sigmas):
+    global show_plot
+    for x in range(10):
+        for pose in arm_data:
+            for j in range(0, dimension, 1):
+                dim = pose[:, j]
+                fuzzy_rules = fuzzy_sets[j]
+                frequency = np.zeros(len(fuzzy_rules))
+
+                if show_plot:
+                    ax = plt.figure().add_subplot(111)
+                    for rule in fuzzy_rules:
+                        ax.plot(fuzzy_set_range[j], rule, '-')
+
+                for entry in dim:
+                    result = []
+                    for rule in fuzzy_rules:
+                        temp = fuzz.interp_membership(fuzzy_set_range[j], rule, entry)
+                        result.append(temp)
+                    max_index = np.array(result).argmax()
+                    frequency[max_index] += 1
+
+                    if result[max_index] < 0.1:  # sigma is really thin...
+                        sigmas[j][max_index] += sigma_increment_factor
+                        # update fuzzy rule
+                        fuzzy_sets[j][max_index] = fuzz.gaussmf(fuzzy_set_range[j], clusters[j][max_index], sigmas[j][max_index])
+                    if show_plot:
+                        ax.plot(entry, 0.5, '.', color=colors[max_index])
+
+                        # plot the data
+                        # update sigma and centroids of cluster
+                total = frequency.sum()
+                percent_max = frequency.max() / total
+                index_max = frequency.argmax()
+                print frequency
+                if percent_max != 1:
+                    pass
+        if show_plot:
+            plt.show()
 
 
+def generate_data(arm_data, fuzzy_set_range, fuzzy_sets):
+    global output_neurons, input_neurons
+
+    output_data = []
+    input_data = []
+    for i, pose in enumerate(arm_data):
+        output = np.zeros(len(arm_data))
+        output[i] = 1  # target matrix...
+
+        for k in range(0, len(pose.tolist()), 1):
+            output_data.append(output)
+
+        # create input matrix for each pose
+        for j in range(0, len(pose), 1):
+            entry = pose[i, :]
+            rule_data = []
+            for k, dim in enumerate(entry):
+                fuzzy_rules = fuzzy_sets[k]
+                for rule in fuzzy_rules:
+                    temp = fuzz.interp_membership(fuzzy_set_range[k], rule, dim)
+                    rule_data.append(temp)
+            input_data.append(rule_data)
+
+    # reformat the input data
 
 
+    return input_data, output_data
 
-def getCluster(arr, radius):
+def build_neural_network():
+    global input_neurons, output_neurons,hidden_neurons
+    net = buildNetwork(input_neurons, hidden_neurons, output_neurons, hiddenclass=structure.TanhLayer, outclass=structure.SoftmaxLayer)
+    ds = SupervisedDataSet(input_neurons, output_neurons)
+    return net, ds
+
+def get_cluster(arr, radius):
     cluster = subtractive_clustering.subtractive_clustering(arr, radius)
-    sigma = (radius * arr.max() - arr.min()) / np.sqrt(8)
+    sigma = np.absolute((radius * arr.max() - arr.min()) / np.sqrt(8))
     print "Done Cluster Centers found are... ", len(cluster)
     print "Done Sigma Value... ", sigma
-
-    return cluster, sigma
-
+    sigma_list =[]
+    for i in range(len(cluster)):
+        sigma_list.append(sigma)
+    return cluster, sigma_list
 
 def read_csv(path):
     global left_arm
@@ -98,18 +196,16 @@ def read_csv(path):
     left_arm.append(temp_left_arm)
     right_arm.append(temp_right_arm)
 
-
-def getFuzzyMembership(centers, sigma, array):
+def get_fuzzy_membership(centers, sigma, array):
     membership = []
     x = np.linspace((array.min() - 10), (array.max() + 10), 500)
-    for center in centers:
-        rule = fuzz.gaussmf(x, center, sigma)
+    for i, center in enumerate(centers):
+        rule = fuzz.gaussmf(x, center, sigma[i])
         membership.append(rule)
 
-    return membership
+    return membership, x
 
-
-def plotMembership(membership):
+def plot_membership(membership):
     ax = plt.figure().add_subplot(111)
     for rule in membership:
         ax.plot(rule, '-')
