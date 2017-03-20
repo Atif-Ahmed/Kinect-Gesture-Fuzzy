@@ -1,5 +1,4 @@
 from threading import Thread
-
 import time
 from sklearn import datasets
 import kinect_interface as kinect
@@ -10,12 +9,13 @@ import mountain_clustering as mount_cluster
 import subtractive_clustering as subtractive_cluster
 import DataCollection.data_collection as data_collection
 import DataTraining.data_training as data_training
+import DataTesting.testing_exercise as test
 
 data_collection_process = 0
 mountain_testing = 0
 subtractive_clustering = 0
 training = 1
-
+exercise_test = 0
 
 def start_kinect():
     loop = True
@@ -30,7 +30,6 @@ def start_kinect():
                     kinect.device_angle_up()
                 if event.key == kinect.window.K_DOWN:
                     kinect.device_angle_down()
-
 
 def mountain_clustering_test():
     # experiment parameters...
@@ -61,7 +60,6 @@ def mountain_clustering_test():
     ax.plot(cluster_x, cluster_y, '.', color='r')
     plt.show()
 
-
 def subtractive_clustering_test():
     # experiment parameters...
     sigmas = [[1.5, 0.2], [0.3, 0.5], [0.2, 0.9], [0.3, 0.5], [0.5, 0.8]]
@@ -91,7 +89,6 @@ def subtractive_clustering_test():
     ax.plot(cluster_y, cluster_x, '.', color='r')
     plt.show()
 
-
 def main():
     if data_collection_process:
         thread_kinect = Thread(target=start_kinect)
@@ -111,6 +108,13 @@ def main():
     if subtractive_clustering:
         subtractive_clustering_test()
 
+    if exercise_test:
+        thread_kinect = Thread(target=start_kinect)
+        thread_kinect.start()
+        while kinect.skeleton is None:
+            pass
+        time.sleep(1)
+        test.init()
 
 if __name__ == '__main__':
     main()

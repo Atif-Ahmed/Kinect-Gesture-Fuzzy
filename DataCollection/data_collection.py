@@ -1,10 +1,11 @@
-import DataCollection.dialog as dialog
-import DataCollection.speech as speech
-
-from pykinect.nui import JointId as Joint_Id
-import time
 import csv
+import time
+
+import dialog as dialog
 import numpy as np
+from pykinect.nui import JointId as Joint_Id
+
+import speech as speech
 
 is_capture = False
 arm_pos_cartesian = []
@@ -98,9 +99,17 @@ def translate_to_spherical(begin, center, end):
     v2_u = unit_vector(np.subtract(center, end))
 
     normal = [i * 1000 for i in (np.cross(v1_u, v2_u).tolist())]
-    normal = np.absolute(np.rint(normal)).tolist()
+    normal_abs = np.absolute(normal).tolist()
+    index = normal_abs.index(max(normal_abs))
+    if(normal[index] >= 0):
+        normal_idx = index*10
+    else:
+        normal_idx = -index*10
 
-    return [np.absolute(angle), normal.index(max(normal))]
+    if(np.absolute(angle) >= 150.0):
+        return [np.absolute(angle), 30.0]
+    else:
+        return [np.absolute(angle), normal_idx]
 
 
 def unit_vector(vector):

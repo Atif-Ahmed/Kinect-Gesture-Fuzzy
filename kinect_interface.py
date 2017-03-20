@@ -3,6 +3,7 @@ from pykinect import nui
 from pykinect.nui import JointId as Joint_Id
 from pykinect.nui.structs import TransformSmoothParameters
 import DataCollection.data_collection as dataCollection
+import DataTesting.testing_exercise as testing_exercise
 
 WINDOW_SIZE = 640, 480
 red = window.color.THECOLORS['red']
@@ -54,6 +55,8 @@ def video_frame_ready(frame):
         draw_skeleton(skeleton_2_d)
         if dataCollection.is_capture:
             dataCollection.get_arm_locations(skeleton)
+        if testing_exercise.is_identify:
+            testing_exercise.get_arm_locations(skeleton)
     window.display.update()
 
 def get_skeleton():
